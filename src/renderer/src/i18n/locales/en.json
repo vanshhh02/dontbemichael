@@ -101,6 +101,7 @@
     "fileRevealLabel": "Show {{name}} in Finder",
     "fileRevealWindows": "Show in folder",
     "fileRevealLabelWindows": "Show {{name}} in its folder",
+    "fileActions": "More actions for {{name}}",
     "fileKind": {
       "markdown": "Markdown",
       "text": "Text",

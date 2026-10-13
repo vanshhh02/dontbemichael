@@ -9,7 +9,7 @@
  *
  * Replaces the rows under the question (docs/designs/ask-me-open-file.md, D2).
  */
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { askFilePaths, fileTitle, kindOf, type AskFileCheck } from '@shared/askFiles';
 import { MarkdownPreview, type MarkdownVariant } from '@/markdown/MarkdownPreview';
@@ -91,6 +91,25 @@ export function FileChip({ path, check, who, onGone }: {
   const icon = kind === 'excel' || kind === 'csv' ? 'sheet' : kind === 'image' ? 'image' : 'file';
   const missing = check?.verdict === 'missing';
   const reveal = !!check && !check.tab && check.verdict === 'reveal';
+  const [actionsOpen, setActionsOpen] = useState(false);
+  const actionsRef = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+    const onDown = (event: MouseEvent) => {
+      if (!actionsRef.current?.contains(event.target as Node)) setActionsOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setActionsOpen(false);
+    };
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [actionsOpen]);
+
   const chip: CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 6, verticalAlign: 'middle', maxWidth: '100%',
     height: 24, padding: '0 8px', margin: '1px 0', border: 0, borderRadius: 'var(--cth-r-sm)',
@@ -116,31 +135,58 @@ export function FileChip({ path, check, who, onGone }: {
       .then((r) => { if (!r.ok) onGone(path); })
       .catch(() => undefined);
   };
+  const copyPath = () => {
+    void navigator.clipboard.writeText(path).catch(() => undefined);
+    setActionsOpen(false);
+  };
+
   const labels = [t('askMe.fileOpen'), t(win ? 'askMe.fileRevealWindows' : 'askMe.fileReveal')];
   return (
-    <button
-      type="button"
-      className="cth-file-chip"
-      onClick={open}
-      disabled={!check}
-      title={`⁨${path}⁩`}
-      aria-label={reveal
-        ? t(win ? 'askMe.fileRevealLabelWindows' : 'askMe.fileRevealLabel', { name })
-        : t('askMe.fileOpenLabel', { name })}
-      style={{ ...chip, background: 'var(--cth-neutral-soft)', color: 'var(--cth-ink)', cursor: check ? 'pointer' : 'default' }}
-    >
-      <span aria-hidden style={{ color: 'var(--cth-ink-3)', display: 'grid', placeItems: 'center' }}><Icon name={icon} size={0.875} /></span>
-      {nameEl}
-      {/* Both labels share one cell, so the chip is as wide as the longer one
-          whichever shows: nothing jumps when the check lands. */}
-      <span aria-hidden style={{ display: 'inline-grid', color: 'var(--cth-indigo-text)', fontWeight: 600 }}>
-        {labels.map((l, j) => (
-          <span key={j} style={{ gridArea: '1 / 1', visibility: check && (j === 1) === reveal ? 'visible' : 'hidden' }}>{l}</span>
-        ))}
-      </span>
-    </button>
+    <span ref={actionsRef} className="cth-file-chip" style={{ ...chip, position: 'relative', gap: 0, padding: 0, background: 'var(--cth-neutral-soft)', color: 'var(--cth-ink)' }}>
+      <button
+        type="button"
+        onClick={open}
+        disabled={!check}
+        title={`⁨${path}⁩`}
+        aria-label={reveal
+          ? t(win ? 'askMe.fileRevealLabelWindows' : 'askMe.fileRevealLabel', { name })
+          : t('askMe.fileOpenLabel', { name })}
+        style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: '100%', minWidth: 0, padding: '0 0 0 8px', border: 0, background: 'transparent', color: 'inherit', font: 'inherit', cursor: check ? 'pointer' : 'default' }}
+      >
+        <span aria-hidden style={{ color: 'var(--cth-ink-3)', display: 'grid', placeItems: 'center' }}><Icon name={icon} size={0.875} /></span>
+        {nameEl}
+        {/* Both labels share one cell, so the chip is as wide as the longer one
+            whichever shows: nothing jumps when the check lands. */}
+        <span aria-hidden style={{ display: 'inline-grid', color: 'var(--cth-indigo-text)', fontWeight: 600 }}>
+          {labels.map((l, j) => (
+            <span key={j} style={{ gridArea: '1 / 1', visibility: check && (j === 1) === reveal ? 'visible' : 'hidden' }}>{l}</span>
+          ))}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={() => setActionsOpen((open) => !open)}
+        aria-label={t('askMe.fileActions', { name })}
+        aria-haspopup="menu"
+        aria-expanded={actionsOpen}
+        style={{ width: 24, height: 24, marginInline: 2, padding: 0, flexShrink: 0, border: 0, borderRadius: 'var(--cth-r-sm)', background: 'transparent', color: 'var(--cth-ink-3)', cursor: 'pointer', display: 'grid', placeItems: 'center' }}
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.75" /><circle cx="12" cy="12" r="1.75" /><circle cx="19" cy="12" r="1.75" /></svg>
+      </button>
+      {actionsOpen && (
+        <span role="menu" style={{ position: 'absolute', top: 'calc(100% + 4px)', insetInlineEnd: 0, zIndex: 20, minWidth: 156, padding: 4, display: 'flex', flexDirection: 'column', background: 'var(--cth-card)', borderRadius: 'var(--cth-r-md)', boxShadow: 'inset 0 0 0 1px var(--cth-line), var(--cth-shadow-lg)' }}>
+          <button type="button" role="menuitem" onClick={() => { open(); setActionsOpen(false); }} disabled={!check} style={fileMenuItem}>{reveal ? labels[1] : labels[0]}</button>
+          <button type="button" role="menuitem" onClick={copyPath} style={fileMenuItem}>{t('fileTree.copyPathTitle')}</button>
+        </span>
+      )}
+    </span>
   );
 }
+
+const fileMenuItem: CSSProperties = {
+  height: 28, padding: '0 8px', border: 0, borderRadius: 'var(--cth-r-sm)', background: 'transparent', color: 'var(--cth-ink)',
+  cursor: 'pointer', textAlign: 'start', fontFamily: 'var(--cth-font-ui)', fontSize: 12
+};
 
 /**
  * Markdown with its files as chips: Michael's replies, Ask me questions and the

@@ -101,6 +101,7 @@
     "fileRevealLabel": "在访达中显示 {{name}}",
     "fileRevealWindows": "在文件夹中显示",
     "fileRevealLabelWindows": "在所在文件夹中显示 {{name}}",
+    "fileActions": "更多 {{name}} 操作",
     "fileKind": {
       "markdown": "Markdown",
       "text": "文本",
